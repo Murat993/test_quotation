@@ -1,0 +1,9 @@
+# Binary and build artifacts
+_build/
+/quotation-service
+
+.idea/
+*.iws
+out/
+cmake-build-*/
+.DS_Store

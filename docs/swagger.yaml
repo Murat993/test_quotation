@@ -1,0 +1,138 @@
+basePath: /
+definitions:
+  internal_delivery_http.errorResponse:
+    properties:
+      error:
+        example: invalid request body
+        type: string
+    type: object
+  internal_delivery_http.latestQuoteResponse:
+    properties:
+      price:
+        example: 75.5
+        type: number
+      updated_at:
+        type: string
+    type: object
+  internal_delivery_http.quoteRequestResponse:
+    properties:
+      price:
+        example: 75.5
+        type: number
+      updated_at:
+        type: string
+    type: object
+  internal_delivery_http.requestUpdateRequest:
+    properties:
+      pair:
+        example: USD/EUR
+        type: string
+    type: object
+  internal_delivery_http.requestUpdateResponse:
+    properties:
+      request_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for fetching and storing exchange rate quotations.
+  title: Quotation Service API
+  version: "1.0"
+paths:
+  /quotes/latest:
+    get:
+      description: Returns the most recent exchange rate for a given pair.
+      parameters:
+      - default: USD/KZT
+        description: Currency Pair (e.g., USD/EUR)
+        in: query
+        name: pair
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_delivery_http.latestQuoteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_delivery_http.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_delivery_http.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_delivery_http.errorResponse'
+      summary: Get latest quote
+      tags:
+      - quotes
+  /quotes/requests/{id}:
+    get:
+      description: Returns the current status of a quote update request.
+      parameters:
+      - description: Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_delivery_http.quoteRequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_delivery_http.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_delivery_http.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_delivery_http.errorResponse'
+      summary: Get request status
+      tags:
+      - quotes
+  /quotes/update:
+    post:
+      consumes:
+      - application/json
+      description: Asks the system to fetch and update the latest exchange rate for
+        a given pair.
+      parameters:
+      - description: Pair info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_delivery_http.requestUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/internal_delivery_http.requestUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_delivery_http.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_delivery_http.errorResponse'
+      summary: Request exchange rate update
+      tags:
+      - quotes
+swagger: "2.0"
