@@ -22,16 +22,14 @@ func NewPoller(
 	logger *slog.Logger,
 	interval time.Duration,
 	batchSize int,
-	staleAfter time.Duration,
 	out chan<- Job,
 ) *Poller {
 	return &Poller{
-		repo:       repo,
-		logger:     logger,
-		interval:   interval,
-		batchSize:  batchSize,
-		staleAfter: staleAfter,
-		out:        out,
+		repo:      repo,
+		logger:    logger,
+		interval:  interval,
+		batchSize: batchSize,
+		out:       out,
 	}
 }
 
@@ -39,7 +37,6 @@ func (p *Poller) Start(ctx context.Context) error {
 	p.logger.Info("Starting poller",
 		"interval", p.interval,
 		"batch_size", p.batchSize,
-		"stale_after", p.staleAfter,
 	)
 
 	ticker := time.NewTicker(p.interval)
@@ -50,17 +47,8 @@ func (p *Poller) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			p.resetStale(ctx)
 			p.poll(ctx)
 		}
-	}
-}
-
-func (p *Poller) resetStale(ctx context.Context) {
-	if affected, err := p.repo.ResetStaleRequests(ctx, p.staleAfter); err != nil {
-		p.logger.Error("Failed to reset stale requests", "error", err)
-	} else if affected > 0 {
-		p.logger.Info("Reset stale requests", "count", affected)
 	}
 }
 

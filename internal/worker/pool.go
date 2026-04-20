@@ -1,11 +1,12 @@
 package worker
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 )
 
-type Handler func(workerID int, job Job)
+type Handler func(ctx context.Context, workerID int, job Job)
 
 type Pool struct {
 	logger  *slog.Logger
@@ -24,10 +25,10 @@ func NewPool(logger *slog.Logger, workers int, jobs <-chan Job, handler Handler)
 	}
 }
 
-func (p *Pool) Start() {
+func (p *Pool) Start(ctx context.Context) {
 	for i := range p.workers {
 		p.wg.Add(1)
-		go p.run(i + 1)
+		go p.run(ctx, i+1)
 	}
 }
 
@@ -35,12 +36,21 @@ func (p *Pool) Wait() {
 	p.wg.Wait()
 }
 
-func (p *Pool) run(id int) {
+func (p *Pool) run(ctx context.Context, id int) {
 	defer p.wg.Done()
 
 	p.logger.Info("Worker started", "worker_id", id)
-	for job := range p.jobs {
-		p.handler(id, job)
+	for {
+		select {
+		case <-ctx.Done():
+			p.logger.Info("Worker stopping (context canceled)", "worker_id", id)
+			return
+		case job, ok := <-p.jobs:
+			if !ok {
+				p.logger.Info("Worker stopping (jobs channel closed)", "worker_id", id)
+				return
+			}
+			p.handler(ctx, id, job)
+		}
 	}
-	p.logger.Info("Worker stopping", "worker_id", id)
 }

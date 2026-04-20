@@ -87,12 +87,13 @@ func TestQuotationSystem(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		s := NewQuotationSystem(repo, provider, logger, Config{
-			Interval:      10 * time.Millisecond,
-			Workers:       1,
-			PollBatchSize: 1,
-			BufferSize:    1,
-			StaleAfter:    time.Minute,
-			JobTimeout:    time.Second,
+			Interval:           10 * time.Millisecond,
+			Workers:            1,
+			PollBatchSize:      1,
+			BufferSize:         1,
+			StaleAfter:         time.Minute,
+			JobTimeout:         time.Second,
+			ResetStaleInterval: time.Minute,
 		})
 
 		go func() {
@@ -124,14 +125,14 @@ func TestPool(t *testing.T) {
 		processed := make(map[string]bool)
 		var mu sync.Mutex
 
-		handler := func(workerID int, job Job) {
+		handler := func(ctx context.Context, workerID int, job Job) {
 			mu.Lock()
 			processed[job.ID] = true
 			mu.Unlock()
 		}
 
 		pool := NewPool(logger, 3, jobs, handler)
-		pool.Start()
+		pool.Start(context.Background())
 
 		for i := 1; i <= 5; i++ {
 			jobs <- Job{ID: string(rune('0' + i)), Pair: "EUR/USD"}
@@ -171,7 +172,7 @@ func TestProcessor(t *testing.T) {
 		}
 
 		p := NewQuotationProcessor(repo, provider, logger, time.Second)
-		p.Handle(1, job)
+		p.Handle(context.Background(), 1, job)
 	})
 
 	t.Run("Processor failure", func(t *testing.T) {
@@ -191,7 +192,7 @@ func TestProcessor(t *testing.T) {
 		}
 
 		p := NewQuotationProcessor(repo, provider, logger, time.Second)
-		p.Handle(1, job)
+		p.Handle(context.Background(), 1, job)
 	})
 }
 
@@ -208,7 +209,7 @@ func TestPoller(t *testing.T) {
 		}
 
 		jobs := make(chan Job, 1)
-		poller := NewPoller(repo, logger, 10*time.Millisecond, 1, time.Minute, jobs)
+		poller := NewPoller(repo, logger, 10*time.Millisecond, 1, jobs)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
 		defer cancel()

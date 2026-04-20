@@ -13,13 +13,16 @@ type Config struct {
 	ExchangeRateAPIKey string
 	Port               string
 
-	WorkerInterval  time.Duration
-	WorkerPoolSize  int
-	PollBatchSize   int
-	JobsChannelSize int
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	ShutdownTimeout time.Duration
+	WorkerInterval     time.Duration
+	WorkerPoolSize     int
+	PollBatchSize      int
+	JobsChannelSize    int
+	WorkerStaleAfter   time.Duration
+	WorkerJobTimeout   time.Duration
+	ResetStaleInterval time.Duration
+	ReadTimeout        time.Duration
+	WriteTimeout       time.Duration
+	ShutdownTimeout    time.Duration
 
 	DBMaxOpenConns    int
 	DBMaxIdleConns    int
@@ -39,6 +42,9 @@ func LoadConfig() (*Config, error) {
 		WorkerPoolSize:     getEnvInt("WORKER_POOL_SIZE", 5),
 		PollBatchSize:      getEnvInt("POLL_BATCH_SIZE", 20),
 		JobsChannelSize:    getEnvInt("JOBS_CHANNEL_SIZE", 100),
+		WorkerStaleAfter:   getEnvDuration("WORKER_STALE_AFTER", 5*time.Minute),
+		WorkerJobTimeout:   getEnvDuration("WORKER_JOB_TIMEOUT", 30*time.Second),
+		ResetStaleInterval: getEnvDuration("RESET_STALE_INTERVAL", 1*time.Minute),
 		ReadTimeout:        getEnvDuration("HTTP_READ_TIMEOUT", 5*time.Second),
 		WriteTimeout:       getEnvDuration("HTTP_WRITE_TIMEOUT", 10*time.Second),
 		ShutdownTimeout:    getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),

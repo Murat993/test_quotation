@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/murat/quotation-service/config"
 	delivery "github.com/murat/quotation-service/internal/delivery/http"
@@ -87,12 +86,13 @@ func (app *App) initServices() error {
 		provider,
 		app.l,
 		worker.Config{
-			Interval:      app.cfg.WorkerInterval,
-			Workers:       app.cfg.WorkerPoolSize,
-			PollBatchSize: app.cfg.PollBatchSize,
-			BufferSize:    app.cfg.JobsChannelSize,
-			StaleAfter:    5 * time.Minute,
-			JobTimeout:    30 * time.Second,
+			Interval:           app.cfg.WorkerInterval,
+			Workers:            app.cfg.WorkerPoolSize,
+			PollBatchSize:      app.cfg.PollBatchSize,
+			BufferSize:         app.cfg.JobsChannelSize,
+			StaleAfter:         app.cfg.WorkerStaleAfter,
+			JobTimeout:         app.cfg.WorkerJobTimeout,
+			ResetStaleInterval: app.cfg.ResetStaleInterval,
 		},
 	)
 

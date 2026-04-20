@@ -30,8 +30,8 @@ func NewQuotationProcessor(
 	}
 }
 
-func (p *QuotationProcessor) Handle(workerID int, job Job) {
-	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
+func (p *QuotationProcessor) Handle(ctx context.Context, workerID int, job Job) {
+	ctx, cancel := context.WithTimeout(ctx, p.timeout)
 	defer cancel()
 
 	p.logger.Info("Processing job", "worker_id", workerID, "id", job.ID, "pair", job.Pair)
