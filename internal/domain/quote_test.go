@@ -72,7 +72,7 @@ func TestNormalizePair(t *testing.T) {
 
 func TestNewQuoteRequest(t *testing.T) {
 	t.Run("Valid pair", func(t *testing.T) {
-		req, err := NewQuoteRequest("EUR/USD")
+		req, err := NewQuoteRequest("EUR/USD", "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -85,10 +85,24 @@ func TestNewQuoteRequest(t *testing.T) {
 		if req.ID == "" {
 			t.Error("expected non-empty ID")
 		}
+		if req.IdempotencyKey != "" {
+			t.Errorf("expected empty idempotency key, got %v", req.IdempotencyKey)
+		}
+	})
+
+	t.Run("With idempotency key", func(t *testing.T) {
+		key := "test-key"
+		req, err := NewQuoteRequest("EUR/USD", key)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if req.IdempotencyKey != key {
+			t.Errorf("expected idempotency key %s, got %v", key, req.IdempotencyKey)
+		}
 	})
 
 	t.Run("Invalid pair", func(t *testing.T) {
-		_, err := NewQuoteRequest("INVALID")
+		_, err := NewQuoteRequest("INVALID", "")
 		if !errors.Is(err, ErrInvalidPair) {
 			t.Errorf("expected error %v, got %v", ErrInvalidPair, err)
 		}

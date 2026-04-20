@@ -109,7 +109,7 @@ paths:
       consumes:
       - application/json
       description: Asks the system to fetch and update the latest exchange rate for
-        a given pair.
+        a given pairr.
       parameters:
       - description: Pair info
         in: body
@@ -117,6 +117,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/internal_delivery_http.requestUpdateRequest'
+      - default: uuid
+        description: Idempotency Key
+        in: header
+        name: X-Idempotency-Key
+        type: string
       produces:
       - application/json
       responses:

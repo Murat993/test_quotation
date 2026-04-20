@@ -10,13 +10,14 @@ import (
 )
 
 type mockRepo struct {
-	saveRequestFunc          func(ctx context.Context, req *domain.QuoteRequest) error
-	getRequestByIDFunc       func(ctx context.Context, id string) (*domain.QuoteRequest, error)
-	claimPendingRequestsFunc func(ctx context.Context, limit int) ([]*domain.QuoteRequest, error)
-	resetStaleRequestsFunc   func(ctx context.Context, olderThan time.Duration) (int64, error)
-	updateStatusFunc         func(ctx context.Context, id string, oldStatus, newStatus domain.QuoteStatus, price float64, errMsg string) error
-	saveLatestFunc           func(ctx context.Context, quote *domain.LatestQuote) error
-	getLatestFunc            func(ctx context.Context, pair string) (*domain.LatestQuote, error)
+	saveRequestFunc                func(ctx context.Context, req *domain.QuoteRequest) error
+	getRequestByIDFunc             func(ctx context.Context, id string) (*domain.QuoteRequest, error)
+	getRequestByIdempotencyKeyFunc func(ctx context.Context, key string) (*domain.QuoteRequest, error)
+	claimPendingRequestsFunc       func(ctx context.Context, limit int) ([]*domain.QuoteRequest, error)
+	resetStaleRequestsFunc         func(ctx context.Context, olderThan time.Duration) (int64, error)
+	updateStatusFunc               func(ctx context.Context, id string, oldStatus, newStatus domain.QuoteStatus, price float64, errMsg string) error
+	saveLatestFunc                 func(ctx context.Context, quote *domain.LatestQuote) error
+	getLatestFunc                  func(ctx context.Context, pair string) (*domain.LatestQuote, error)
 }
 
 func (m *mockRepo) SaveRequest(ctx context.Context, req *domain.QuoteRequest) error {
@@ -25,6 +26,10 @@ func (m *mockRepo) SaveRequest(ctx context.Context, req *domain.QuoteRequest) er
 
 func (m *mockRepo) GetRequestByID(ctx context.Context, id string) (*domain.QuoteRequest, error) {
 	return m.getRequestByIDFunc(ctx, id)
+}
+
+func (m *mockRepo) GetRequestByIdempotencyKey(ctx context.Context, key string) (*domain.QuoteRequest, error) {
+	return m.getRequestByIdempotencyKeyFunc(ctx, key)
 }
 
 func (m *mockRepo) ClaimPendingRequests(ctx context.Context, limit int) ([]*domain.QuoteRequest, error) {
@@ -58,7 +63,7 @@ func TestQuotation_RequestUpdate(t *testing.T) {
 			},
 		}
 		u := NewQuotation(repo)
-		id, err := u.RequestUpdate(t.Context(), "EUR/USD")
+		id, err := u.RequestUpdate(t.Context(), "EUR/USD", "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -69,23 +74,30 @@ func TestQuotation_RequestUpdate(t *testing.T) {
 
 	t.Run("invalid pair", func(t *testing.T) {
 		u := NewQuotation(&mockRepo{})
-		_, err := u.RequestUpdate(t.Context(), "INVALID")
+		_, err := u.RequestUpdate(t.Context(), "INVALID", "")
 		if !errors.Is(err, domain.ErrInvalidPair) {
 			t.Errorf("expected error %v, got %v", domain.ErrInvalidPair, err)
 		}
 	})
 
-	t.Run("repo error", func(t *testing.T) {
-		repoErr := errors.New("db error")
+	t.Run("idempotency success", func(t *testing.T) {
+		key := "test-key"
+		existingReq := &domain.QuoteRequest{ID: "existing-id", Pair: "EUR/USD", IdempotencyKey: key}
 		repo := &mockRepo{
-			saveRequestFunc: func(ctx context.Context, req *domain.QuoteRequest) error {
-				return repoErr
+			getRequestByIdempotencyKeyFunc: func(ctx context.Context, k string) (*domain.QuoteRequest, error) {
+				if k == key {
+					return existingReq, nil
+				}
+				return nil, nil
 			},
 		}
 		u := NewQuotation(repo)
-		_, err := u.RequestUpdate(t.Context(), "EUR/USD")
-		if !errors.Is(err, repoErr) {
-			t.Errorf("expected error %v, got %v", repoErr, err)
+		id, err := u.RequestUpdate(t.Context(), "EUR/USD", key)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if id != existingReq.ID {
+			t.Errorf("expected id %s, got %s", existingReq.ID, id)
 		}
 	})
 }

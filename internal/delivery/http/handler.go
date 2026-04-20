@@ -27,6 +27,7 @@ func NewQuoteHandler(uc usecase.QuotationUseCase, logger *slog.Logger) *QuoteHan
 // @Accept       json
 // @Produce      json
 // @Param        request body      requestUpdateRequest  true  "Pair info"
+// @Param        X-Idempotency-Key header string false "Idempotency Key" default(uuid)
 // @Success      202  {object}  requestUpdateResponse
 // @Failure      400  {object}  errorResponse
 // @Failure      500  {object}  errorResponse
@@ -43,7 +44,8 @@ func (h *QuoteHandler) RequestUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.uc.RequestUpdate(r.Context(), req.Pair)
+	idempotencyKey := r.Header.Get("X-Idempotency-Key")
+	id, err := h.uc.RequestUpdate(r.Context(), req.Pair, idempotencyKey)
 	if err != nil {
 		if errors.Is(err, usecase.ErrInvalidPair) {
 			h.writeError(w, http.StatusBadRequest, err.Error())

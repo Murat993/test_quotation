@@ -20,17 +20,28 @@ func NewQuoteRepository(db *sql.DB, logger *slog.Logger) *quoteRepository {
 }
 
 func (r *quoteRepository) SaveRequest(ctx context.Context, req *domain.QuoteRequest) error {
-	r.logger.Info("Saving quote request", "id", req.ID, "pair", req.Pair)
-	query := `INSERT INTO quote_requests (id, pair, status, price, error, created_at, updated_at) 
-			  VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := r.db.ExecContext(ctx, query, req.ID, req.Pair, req.Status, req.Price, req.Error, req.CreatedAt, req.UpdatedAt)
+	r.logger.Info("Saving quote request", "id", req.ID, "pair", req.Pair, "idempotency_key", req.IdempotencyKey)
+
+	query := `INSERT INTO quote_requests (id, pair, status, price, error, idempotency_key, created_at, updated_at) 
+			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	_, err := r.db.ExecContext(ctx, query, req.ID, req.Pair, req.Status, req.Price, req.Error, req.IdempotencyKey, req.CreatedAt, req.UpdatedAt)
 	return err
 }
 
 func (r *quoteRepository) GetRequestByID(ctx context.Context, id string) (*domain.QuoteRequest, error) {
 	r.logger.Info("Getting quote request by ID", "id", id)
-	query := `SELECT id, pair, status, price, error, created_at, updated_at FROM quote_requests WHERE id = $1`
+	query := `SELECT id, pair, status, price, error, idempotency_key, created_at, updated_at 
+			  FROM quote_requests WHERE id = $1`
 	row := r.db.QueryRowContext(ctx, query, id)
+
+	return scanQuoteRequest(row)
+}
+
+func (r *quoteRepository) GetRequestByIdempotencyKey(ctx context.Context, key string) (*domain.QuoteRequest, error) {
+	r.logger.Info("Getting quote request by idempotency key", "key", key)
+	query := `SELECT id, pair, status, price, error, idempotency_key, created_at, updated_at 
+			  FROM quote_requests WHERE idempotency_key = $1`
+	row := r.db.QueryRowContext(ctx, query, key)
 
 	return scanQuoteRequest(row)
 }
@@ -48,7 +59,7 @@ WHERE id IN (
 	LIMIT $2 
 	FOR UPDATE SKIP LOCKED
 )
-RETURNING id, pair, status, price, error, created_at, updated_at;
+RETURNING id, pair, status, price, error, idempotency_key, created_at, updated_at;
 `
 	rows, err := r.db.QueryContext(ctx, query, domain.StatusPending, limit, domain.StatusProcessing)
 	if err != nil {
@@ -141,6 +152,7 @@ func scanQuoteRequest(scanner interface {
 		&req.Status,
 		&req.Price,
 		&req.Error,
+		&req.IdempotencyKey,
 		&req.CreatedAt,
 		&req.UpdatedAt,
 	); err != nil {

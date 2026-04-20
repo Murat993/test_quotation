@@ -13,13 +13,13 @@ import (
 )
 
 type mockUseCase struct {
-	requestUpdateFunc  func(ctx context.Context, pair string) (string, error)
+	requestUpdateFunc  func(ctx context.Context, pair string, idempotencyKey string) (string, error)
 	getByRequestIDFunc func(ctx context.Context, id string) (*domain.QuoteRequest, error)
 	getLatestFunc      func(ctx context.Context, pair string) (*domain.LatestQuote, error)
 }
 
-func (m *mockUseCase) RequestUpdate(ctx context.Context, pair string) (string, error) {
-	return m.requestUpdateFunc(ctx, pair)
+func (m *mockUseCase) RequestUpdate(ctx context.Context, pair string, idempotencyKey string) (string, error) {
+	return m.requestUpdateFunc(ctx, pair, idempotencyKey)
 }
 
 func (m *mockUseCase) GetByRequestID(ctx context.Context, id string) (*domain.QuoteRequest, error) {
@@ -34,31 +34,60 @@ func (m *mockUseCase) GetLatest(ctx context.Context, pair string) (*domain.Lates
 }
 
 func TestQuoteHandler_RequestUpdate(t *testing.T) {
-	uc := &mockUseCase{
-		requestUpdateFunc: func(ctx context.Context, pair string) (string, error) {
-			return "test-id", nil
-		},
-	}
-	h := NewQuoteHandler(uc, nil)
+	t.Run("Success without idempotency key", func(t *testing.T) {
+		uc := &mockUseCase{
+			requestUpdateFunc: func(ctx context.Context, pair string, key string) (string, error) {
+				if key != "" {
+					t.Errorf("expected empty idempotency key, got %v", key)
+				}
+				return "test-id", nil
+			},
+		}
+		h := NewQuoteHandler(uc, nil)
 
-	reqBody := `{"pair": "EUR/USD"}`
-	req := httptest.NewRequest("POST", "/quotes/update", strings.NewReader(reqBody))
-	rr := httptest.NewRecorder()
+		reqBody := `{"pair": "EUR/USD"}`
+		req := httptest.NewRequest("POST", "/quotes/update", strings.NewReader(reqBody))
+		rr := httptest.NewRecorder()
 
-	h.RequestUpdate(rr, req)
+		h.RequestUpdate(rr, req)
 
-	if rr.Code != http.StatusAccepted {
-		t.Errorf("expected status 202, got %d", rr.Code)
-	}
+		if rr.Code != http.StatusAccepted {
+			t.Errorf("expected status 202, got %d", rr.Code)
+		}
 
-	var resp requestUpdateResponse
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-		t.Fatal(err)
-	}
+		var resp requestUpdateResponse
+		if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+			t.Fatal(err)
+		}
 
-	if resp.RequestID != "test-id" {
-		t.Errorf("expected id test-id, got %s", resp.RequestID)
-	}
+		if resp.RequestID != "test-id" {
+			t.Errorf("expected id test-id, got %s", resp.RequestID)
+		}
+	})
+
+	t.Run("Success with idempotency key", func(t *testing.T) {
+		expectedKey := "test-key"
+		uc := &mockUseCase{
+			requestUpdateFunc: func(ctx context.Context, pair string, key string) (string, error) {
+				if key != expectedKey {
+					t.Errorf("expected idempotency key %s, got %v", expectedKey, key)
+				}
+				return "test-id", nil
+			},
+		}
+		h := NewQuoteHandler(uc, nil)
+
+		reqBody := `{"pair": "EUR/USD"}`
+		req := httptest.NewRequest("POST", "/quotes/update", strings.NewReader(reqBody))
+		req.Header.Set("X-Idempotency-Key", expectedKey)
+		rr := httptest.NewRecorder()
+
+		h.RequestUpdate(rr, req)
+
+		if rr.Code != http.StatusAccepted {
+			t.Errorf("expected status 202, got %d", rr.Code)
+		}
+	})
 }
 
 func TestQuoteHandler_GetStatus(t *testing.T) {

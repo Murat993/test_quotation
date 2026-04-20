@@ -29,16 +29,20 @@ const (
 )
 
 type QuoteRequest struct {
-	ID        string      `json:"id"`
-	Pair      string      `json:"pair"`
-	Status    QuoteStatus `json:"status"`
-	Price     float64     `json:"price"`
-	Error     string      `json:"error"`
-	CreatedAt time.Time   `json:"created_at"`
-	UpdatedAt time.Time   `json:"updated_at"`
+	ID             string      `json:"id"`
+	Pair           string      `json:"pair"`
+	Status         QuoteStatus `json:"status"`
+	Price          float64     `json:"price"`
+	Error          string      `json:"error"`
+	IdempotencyKey string      `json:"idempotency_key,omitzero"`
+	CreatedAt      time.Time   `json:"created_at"`
+	UpdatedAt      time.Time   `json:"updated_at"`
 }
 
-func NewQuoteRequest(pair string) (*QuoteRequest, error) {
+func NewQuoteRequest(pair string, idempotencyKey string) (*QuoteRequest, error) {
+	if len(idempotencyKey) > 255 {
+		return nil, errors.New("idempotency key too long, max 255 characters")
+	}
 	normalized, err := NormalizePair(pair)
 	if err != nil {
 		return nil, err
@@ -46,11 +50,12 @@ func NewQuoteRequest(pair string) (*QuoteRequest, error) {
 
 	now := time.Now()
 	return &QuoteRequest{
-		ID:        uuid.New().String(),
-		Pair:      normalized,
-		Status:    StatusPending,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:             uuid.New().String(),
+		Pair:           normalized,
+		Status:         StatusPending,
+		IdempotencyKey: idempotencyKey,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}, nil
 }
 

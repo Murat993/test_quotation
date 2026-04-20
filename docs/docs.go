@@ -112,7 +112,7 @@ const docTemplate = `{
         },
         "/quotes/update": {
             "post": {
-                "description": "Asks the system to fetch and update the latest exchange rate for a given pair.",
+                "description": "Asks the system to fetch and update the latest exchange rate for a given pairr.",
                 "consumes": [
                     "application/json"
                 ],
@@ -132,6 +132,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http.requestUpdateRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Idempotency Key",
+                        "name": "X-Idempotency-Key",
+                        "in": "header"
                     }
                 ],
                 "responses": {

@@ -38,6 +38,9 @@ func (m *mockRepo) SaveRequest(ctx context.Context, req *domain.QuoteRequest) er
 func (m *mockRepo) GetRequestByID(ctx context.Context, id string) (*domain.QuoteRequest, error) {
 	return nil, nil
 }
+func (m *mockRepo) GetRequestByIdempotencyKey(ctx context.Context, key string) (*domain.QuoteRequest, error) {
+	return nil, nil
+}
 func (m *mockRepo) GetLatest(ctx context.Context, pair string) (*domain.LatestQuote, error) {
 	return nil, nil
 }
